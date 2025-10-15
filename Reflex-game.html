@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reaction time</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg,#42445A,#57596C);
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .score-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .score, .timer {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .game-area {
+            position: relative;
+            width: 100%;
+            height: 60vh;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        }
+        
+        .target {
+            position: absolute;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        
+        .target:active {
+            transform: scale(0.9);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+        }
+        
+        button {
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 50px;
+            background: #ff6b6b;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #start-btn {
+            background: #4caf50;
+        }
+        
+        #start-btn:hover {
+            background: #43a047;
+        }
+        
+        .instructions {
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: left;
+        }
+        
+        .instructions h3 {
+            margin-bottom: 10px;
+        }
+        
+        .instructions p {
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 500px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .score, .timer {
+                font-size: 1.2rem;
+            }
+            
+            button {
+                padding: 10px 20px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tap Game</h1>
+        
+        <div class="score-container">
+            <div class="score">Score: <span id="score">0</span></div>
+            <div class="timer">Time: <span id="time">30</span>s</div>
+        </div>
+        
+        <div class="game-area" id="game-area"></div>
+        
+        <div class="controls">
+            <button id="start-btn">Start Game</button>
+            <button id="reset-btn">Reset</button>
+        </div>
+        
+        <div class="instructions">
+            <h3>How to Play:</h3>
+            <p>• Tap the circles before they disappear</p>
+            <p>• Each tap gives you 1 point</p>
+            <p>• Game lasts for 30 seconds</p>
+        </div>
+    </div>
+
+    <script>
+        // Game variables
+        let score = 0;
+        let timeLeft = 30;
+        let gameInterval;
+        let targetInterval;
+        let isPlaying = false;
+        
+        // DOM elements
+        const gameArea = document.getElementById('game-area');
+        const scoreDisplay = document.getElementById('score');
+        const timeDisplay = document.getElementById('time');
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        
+        // Event listeners for both mouse and touch events
+        startBtn.addEventListener('click', startGame);
+        resetBtn.addEventListener('click', resetGame);
+        
+        // Mobile-friendly event listener
+        gameArea.addEventListener('touchstart', function(e) {
+            if (!isPlaying) return;
+            
+            // Prevent default to avoid mouse events being triggered on some devices
+            e.preventDefault();
+            
+            // Get touch position
+            const touch = e.touches[0];
+            const touchTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+            
+            // Check if the touched element is a target
+            if (touchTarget.classList.contains('target')) {
+                hitTarget(touchTarget);
+            }
+        });
+        
+        // Mouse click event listener
+        gameArea.addEventListener('click', function(e) {
+            if (!isPlaying) return;
+            
+            if (e.target.classList.contains('target')) {
+                hitTarget(e.target);
+            }
+        });
+        
+        // Function to handle target hit
+        function hitTarget(target) {
+            // Remove the target
+            target.remove();
+            
+            // Increase score
+            score++;
+            scoreDisplay.textContent = score;
+            
+            // Visual feedback
+            document.body.style.backgroundColor = '#a777e3';
+            setTimeout(() => {
+                document.body.style.backgroundColor = '';
+            }, 10);
+        }
+        
+        // Function to create a target
+        function createTarget() {
+            if (!isPlaying) return;
+            
+            const target = document.createElement('div');
+            target.classList.add('target');
+            
+            // Random size between 40 and 70px
+            const size = Math.floor(Math.random() * 30) + 40;
+            target.style.width = ${size}px;
+            target.style.height = ${size}px;
+            
+            // Random position within game area
+            const maxWidth = gameArea.offsetWidth - size;
+            const maxHeight = gameArea.offsetHeight - size;
+            
+            const x = Math.floor(Math.random() * maxWidth);
+            const y = Math.floor(Math.random() * maxHeight);
+            
+            target.style.left = ${x}px;
+            target.style.top = ${y}px;
+            
+            // Random color with gradient
+            const hue = Math.floor(Math.random() * 360);
+            target.style.background = radial-gradient(circle at 30% 30%, hsl(${hue}, 100%, 70%), hsl(${hue}, 100%, 50%));
+            
+            // Add to game area
+            gameArea.appendChild(target);
+            
+            // Remove target after a random time (1-2.5 seconds)
+            setTimeout(() => {
+                if (target.parentNode) {
+                    target.remove();
+                }
+            }, Math.random() * 1500 + 1000);
+        }
+        
+        // Function to start the game
+        function startGame() {
+            if (isPlaying) return;
+            
+            isPlaying = true;
+            score = 0;
+            timeLeft = 30;
+            scoreDisplay.textContent = score;
+            timeDisplay.textContent = timeLeft;
+            
+            // Clear any existing targets
+            gameArea.innerHTML = '';
+            
+            // Start creating targets
+            targetInterval = setInterval(createTarget, 800);
+            
+            // Start timer
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                timeDisplay.textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+            
+            startBtn.textContent = "Playing...";
+            startBtn.disabled = true;
+        }
+        
+        // Function to end the game
+        function endGame() {
+            isPlaying = false;
+            clearInterval(gameInterval);
+            clearInterval(targetInterval);
+            
+            // Remove all targets
+            gameArea.innerHTML = '';
+            
+            // Show final score in game area
+            const gameOver = document.createElement('div');
+            gameOver.style.color = 'white';
+            gameOver.style.fontSize = '2rem';
+            gameOver.style.fontWeight = 'bold';
+            gameOver.style.textAlign = 'center';
+            gameOver.style.paddingTop = '40%';
+            gameOver.innerHTML = Game Over!<br>Final Score: ${score};
+            gameArea.appendChild(gameOver);
+            
+            startBtn.textContent = "Start Game";
+            startBtn.disabled = false;
+        }
+        
+        // Function to reset the game
+        function resetGame() {
+            // If game is playing, stop it first
+            if (isPlaying) {
+                clearInterval(gameInterval);
+                clearInterval(targetInterval);
+                isPlaying = false;
+            }
+            
+            score = 0;
+            timeLeft = 30;
+            scoreDisplay.textContent = score;
+            timeDisplay.textContent = timeLeft;
+            
+            // Clear game area
+            gameArea.innerHTML = '';
+            
+            startBtn.textContent = "Start Game";
+            startBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
